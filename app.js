@@ -1,9 +1,5 @@
-require('dotenv').config();
-
 const express = require('express')
 const port = process.env.PORT;
-
-
 
 const app = express()
 app.use(express.json())
@@ -17,8 +13,6 @@ const allowedOrigins = process.env.CORS_ORIGIN
 app.use(cors({
     origin: allowedOrigins
 }))
-
-
 
 app.get('/api/leaderboard', async (req, res) => {
     try {
@@ -51,6 +45,4 @@ app.post('/api/score', async (req, res) => {
     }
 })
 
-app.listen(port, () => {
-    console.log(`server listening port on ${port}`)
-})
+module.exports = app;
