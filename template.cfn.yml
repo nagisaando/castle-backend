@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Castle Backend - Serverless Express API
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+  
+  DatabaseUrl:
+    Type: String
+    NoEcho: true
+    Description: PostgreSQL database connection string
+  
+  CorsOrigin:
+    Type: String
+    Default: "*"
+    Description: CORS allowed origin
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        NODE_ENV: !Ref Environment
+
+Resources:
+  CastleBackendFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "castle-backend-${Environment}"
+      CodeUri: ./
+      Handler: lambda.handler
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          CORS_ORIGIN: !Ref CorsOrigin
+      Events:
+        ApiProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CastleBackendApi
+            Path: /{proxy+}
+            Method: ANY
+        ApiRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CastleBackendApi
+            Path: /
+            Method: ANY
+
+  CastleBackendApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "castle-backend-api-${Environment}"
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: !Sub "'${CorsOrigin}'"
+      EndpointConfiguration:
+        Type: REGIONAL
+
+Outputs:
+  ApiGatewayUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${CastleBackendApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
+  
+  LambdaFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt CastleBackendFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaArn"
