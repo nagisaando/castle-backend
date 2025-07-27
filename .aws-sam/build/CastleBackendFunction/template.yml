@@ -12,11 +12,6 @@ Parameters:
       - prod
     Description: Environment name
   
-  DatabaseUrl:
-    Type: String
-    NoEcho: true
-    Description: PostgreSQL database connection string
-  
   CorsOrigin:
     Type: String
     Default: "*"
@@ -26,7 +21,6 @@ Parameters:
     Type: String
     Default: "postgres"
     Description: Master username for Aurora cluster
-  
   
   DbName:
     Type: String
@@ -45,17 +39,6 @@ Globals:
         NODE_ENV: !Ref Environment
 
 Resources:
-  CastleBackendDBSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub "castle-backend-db-secret-${Environment}"
-      Description: Database credentials for Castle Backend
-      GenerateSecretString:
-        SecretStringTemplate: !Sub '{"username": "${DBUsername}"}'
-        GenerateStringKey: 'password'
-        PasswordLength: 32
-        ExcludeCharacters: '"@/\'
-
   CastleBackendDBCluster:
     Type: AWS::RDS::DBCluster
     Properties:
@@ -64,8 +47,6 @@ Resources:
       EngineVersion: 16.6
       MasterUsername: !Ref DBUsername
       ManageMasterUserPassword: true
-      MasterUserSecret:
-        SecretArn: !Ref CastleBackendDBSecret
       DatabaseName: !Ref DbName
       EnableHttpEndpoint: true
       ServerlessV2ScalingConfiguration:
@@ -113,12 +94,12 @@ Resources:
           - Effect: Allow
             Action:
               - secretsmanager:GetSecretValue
-            Resource: !Ref CastleBackendDBSecret
+            Resource: !GetAtt CastleBackendDBCluster.MasterUserSecret.SecretArn
       Environment:
         Variables:
           CORS_ORIGIN: !Ref CorsOrigin
           DB_CLUSTER_ARN: !GetAtt CastleBackendDBCluster.DBClusterArn
-          DB_SECRET_ARN: !Ref CastleBackendDBSecret
+          DB_SECRET_ARN: !GetAtt CastleBackendDBCluster.MasterUserSecret.SecretArn
           DB_NAME: !Ref DbName
       Events:
         ApiProxy:
