@@ -45,3 +45,7 @@ tmp/
 temp/
 
 *.local.*
+
+# AWS
+.aws-sam/
+samconfig.toml

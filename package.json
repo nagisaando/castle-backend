@@ -1,17 +1,20 @@
 {
   "name": "castle-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "lambda.js",
   "scripts": {
+    "start": "node --env-file=.env server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@codegenie/serverless-express": "^4.17.0",
     "cors": "^2.8.5",
-    "dotenv": "^17.1.0",
-    "express": "^5.1.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
     "pg-promise": "^11.15.0"
   }
 }
