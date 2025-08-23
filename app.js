@@ -1,10 +1,10 @@
+require('dotenv').config();
+
 const express = require('express')
 const crypto = require('crypto')
 const { createClient } = require('@supabase/supabase-js')
 const app = express()
 app.use(express.json())
-
-const db = require('./db');
 
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_KEY
@@ -12,12 +12,18 @@ const supabaseKey = process.env.SUPABASE_KEY
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 
+
 // Session management now uses database table
 
 // Cleanup expired sessions every 10 minutes
 setInterval(async () => {
     try {
-        await db.none('DELETE FROM sessions WHERE expires_at <= NOW()');
+        const { error } = await supabase
+            .from('sessions')
+            .delete()
+            .lt('expires_at', new Date().toISOString());
+
+        if (error) throw error;
         console.log('Expired sessions cleaned up');
     } catch (error) {
         console.error('Session cleanup error:', error.message);
@@ -51,10 +57,13 @@ app.post('/api/game/start', async (req, res) => {
         const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
 
         // Insert session into database
-        await db.one(
-            'INSERT INTO sessions(session_id, expires_at) VALUES($1, $2) RETURNING session_id',
-            [sessionId, expiresAt]
-        );
+        const { data, error } = await supabase
+            .from('sessions')
+            .insert({ session_id: sessionId, expires_at: expiresAt.toISOString() })
+            .select('session_id')
+            .single();
+
+        if (error) throw error;
 
         res.cookie('gameSession', sessionId, {
             maxAge: 60 * 60 * 1000, // 1 hour
@@ -71,7 +80,13 @@ app.post('/api/game/start', async (req, res) => {
 
 app.get('/api/leaderboard', async (req, res) => {
     try {
-        const topScores = await db.any('SELECT username, score, created_at FROM scores ORDER BY score DESC LIMIT 10')
+        const { data: topScores, error } = await supabase
+            .from('scores')
+            .select('username, score, created_at')
+            .order('score', { ascending: false })
+            .limit(10);
+
+        if (error) throw error;
         res.json(topScores);
     } catch (error) {
         res.status(500).json({
@@ -101,10 +116,14 @@ app.post('/api/score', async (req, res) => {
         }
 
         // Check if session exists and is not expired
-        const session = await db.oneOrNone(
-            'SELECT session_id FROM sessions WHERE session_id = $1 AND expires_at > NOW()',
-            [sessionId]
-        );
+        const { data: session, error: sessionError } = await supabase
+            .from('sessions')
+            .select('session_id')
+            .eq('session_id', sessionId)
+            .gt('expires_at', new Date().toISOString())
+            .single();
+
+        if (sessionError && sessionError.code !== 'PGRST116') throw sessionError; // PGRST116 = no rows found
 
         if (!session) {
             return res.status(401).json({
@@ -112,13 +131,21 @@ app.post('/api/score', async (req, res) => {
             });
         }
 
-        const newScore = await db.one(
-            'INSERT INTO scores(username, score) VALUES($1, $2) RETURNING *',
-            [username, score]
-        )
+        const { data: newScore, error: scoreError } = await supabase
+            .from('scores')
+            .insert({ username, score })
+            .select()
+            .single();
+
+        if (scoreError) throw scoreError;
 
         // Expire the session after successful score submission
-        await db.none('DELETE FROM sessions WHERE session_id = $1', [sessionId]);
+        const { error: deleteError } = await supabase
+            .from('sessions')
+            .delete()
+            .eq('session_id', sessionId);
+
+        if (deleteError) throw deleteError;
         res.clearCookie('gameSession');
 
         res.json(newScore)
