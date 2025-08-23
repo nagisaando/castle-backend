@@ -1,10 +1,16 @@
 const express = require('express')
 const crypto = require('crypto')
-
+const { createClient } = require('@supabase/supabase-js')
 const app = express()
 app.use(express.json())
 
 const db = require('./db');
+
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_KEY
+
+const supabase = createClient(supabaseUrl, supabaseKey)
+
 
 // Session management now uses database table
 
@@ -34,7 +40,8 @@ const cors = require('cors');
 const allowedOrigins = process.env.CORS_ORIGIN
 
 app.use(cors({
-    origin: allowedOrigins
+    origin: allowedOrigins,
+    credentials: true
 }))
 
 // Game start endpoint - creates session
@@ -42,20 +49,20 @@ app.post('/api/game/start', async (req, res) => {
     try {
         const sessionId = crypto.randomUUID();
         const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
-        
+
         // Insert session into database
         await db.one(
             'INSERT INTO sessions(session_id, expires_at) VALUES($1, $2) RETURNING session_id',
             [sessionId, expiresAt]
         );
-        
+
         res.cookie('gameSession', sessionId, {
             maxAge: 60 * 60 * 1000, // 1 hour
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict'
         });
-        
+
         res.json({ success: true, sessionId });
     } catch (error) {
         res.status(500).json({ error: error.message });
