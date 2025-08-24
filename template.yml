@@ -126,6 +126,9 @@ Resources:
         AllowOrigin: !Sub "'${CorsOrigin}'"
       EndpointConfiguration:
         Type: REGIONAL
+      ThrottleSettings:
+        BurstLimit: 20     # Handles LinkedIn traffic spikes
+        RateLimit: 5       # 5 requests per second sustained
 
 Outputs:
   ApiGatewayUrl:

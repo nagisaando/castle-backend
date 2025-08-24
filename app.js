@@ -99,9 +99,24 @@ app.post('/api/score', async (req, res) => {
     try {
         const { username, score } = req.body;
 
+        // Validate required fields
         if (!username || score === undefined) {
             return res.status(400).json({
                 error: 'Username and score are required'
+            })
+        }
+
+        // Validate username: any characters, 1-10 chars
+        if (typeof username !== 'string' || username.length < 1 || username.length > 10) {
+            return res.status(400).json({
+                error: 'Username must be 1-10 characters'
+            })
+        }
+
+        // Validate score: must be number between 0-1000
+        if (typeof score !== 'number' || score < 0 || score > 1000) {
+            return res.status(400).json({
+                error: 'Score must be a number between 0 and 1000'
             })
         }
 
