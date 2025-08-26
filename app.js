@@ -15,8 +15,8 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Session management now uses database table
 
-// Cleanup expired sessions every 10 minutes
-setInterval(async () => {
+// Clean up expired sessions (called during API requests)
+async function cleanupExpiredSessions() {
     try {
         const { error } = await supabase
             .from('sessions')
@@ -28,7 +28,7 @@ setInterval(async () => {
     } catch (error) {
         console.error('Session cleanup error:', error.message);
     }
-}, 10 * 60 * 1000); // 10 minutes
+}
 
 // Cookie parsing utility
 function parseCookies(cookieHeader) {
@@ -53,6 +53,9 @@ app.use(cors({
 // Game start endpoint - creates session
 app.post('/api/game/start', async (req, res) => {
     try {
+        // Clean up expired sessions before creating new one
+        await cleanupExpiredSessions();
+        
         const sessionId = crypto.randomUUID();
         const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
 
