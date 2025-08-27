@@ -43,12 +43,31 @@ function parseCookies(cookieHeader) {
 }
 
 const cors = require('cors');
-const allowedOrigins = process.env.CORS_ORIGIN
+const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [];
 
 app.use(cors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }))
+
+// API Key middleware
+app.use('/api', (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+    const expectedApiKey = 'H4oJvBoI6G2Q7fNDJzy8eaSxwG7qCgTacLbqYHR0';
+    
+    if (!apiKey || apiKey !== expectedApiKey) {
+        return res.status(401).json({ error: 'Invalid or missing API key' });
+    }
+    
+    next();
+});
 
 // Game start endpoint - creates session
 app.post('/api/game/start', async (req, res) => {
