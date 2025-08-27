@@ -24,6 +24,21 @@ Parameters:
   SupabaseKey:
     Type: String
     Description: Supabase anon key
+  
+  ApiKeyThrottleRate:
+    Type: Number
+    Default: 10
+    Description: API key throttle rate limit (requests per second)
+  
+  ApiKeyThrottleBurst:
+    Type: Number
+    Default: 50
+    Description: API key throttle burst limit
+  
+  ApiKeyQuotaLimit:
+    Type: Number
+    Default: 1000
+    Description: API key monthly quota limit
 
 Globals:
   Function:
@@ -67,15 +82,23 @@ Resources:
     Properties:
       Name: !Sub "castle-backend-api-${Environment}"
       StageName: !Ref Environment
+      Auth:
+        ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          Description: !Sub "Usage plan for castle-backend-api-${Environment}"
+          Quota:
+            Limit: !Ref ApiKeyQuotaLimit
+            Period: MONTH
+          Throttle:
+            RateLimit: !Ref ApiKeyThrottleRate
+            BurstLimit: !Ref ApiKeyThrottleBurst
       Cors:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
         AllowOrigin: !Sub "'${CorsOrigin}'"
       EndpointConfiguration:
         Type: REGIONAL
-      ThrottleSettings:
-        BurstLimit: 20     # Handles LinkedIn traffic spikes
-        RateLimit: 5       # 5 requests per second sustained
 
 Outputs:
   ApiGatewayUrl:
@@ -89,3 +112,15 @@ Outputs:
     Value: !GetAtt CastleBackendFunction.Arn
     Export:
       Name: !Sub "${AWS::StackName}-LambdaArn"
+  
+  ApiKey:
+    Description: API Key for accessing the API
+    Value: !Ref CastleBackendApiApiKey
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiKey"
+  
+  UsagePlan:
+    Description: Usage Plan for API throttling and quotas
+    Value: !Ref CastleBackendApiUsagePlan
+    Export:
+      Name: !Sub "${AWS::StackName}-UsagePlan"
