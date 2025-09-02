@@ -10,7 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@codegenie/serverless-express": "^4.17.0",
+    "@codegenie/serverless-express": "4.15.0",
     "@supabase/supabase-js": "^2.56.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",

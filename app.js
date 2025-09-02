@@ -60,12 +60,12 @@ app.use(cors({
 // API Key middleware
 app.use('/api', (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
-    const expectedApiKey = 'H4oJvBoI6G2Q7fNDJzy8eaSxwG7qCgTacLbqYHR0';
-    
+    const expectedApiKey = 'XagnG5L1ss1nVX9F6ixDZ4GD1c2HUNyb3nm7gkIO';
+
     if (!apiKey || apiKey !== expectedApiKey) {
         return res.status(401).json({ error: 'Invalid or missing API key' });
     }
-    
+
     next();
 });
 
@@ -74,7 +74,7 @@ app.post('/api/game/start', async (req, res) => {
     try {
         // Clean up expired sessions before creating new one
         await cleanupExpiredSessions();
-        
+
         const sessionId = crypto.randomUUID();
         const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
 

@@ -93,10 +93,6 @@ Resources:
           Throttle:
             RateLimit: !Ref ApiKeyThrottleRate
             BurstLimit: !Ref ApiKeyThrottleBurst
-      Cors:
-        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-        AllowOrigin: !Sub "'${CorsOrigin}'"
       EndpointConfiguration:
         Type: REGIONAL
 
