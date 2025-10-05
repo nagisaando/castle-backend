@@ -1,7 +1,6 @@
 require('dotenv').config();
 
 const express = require('express')
-const crypto = require('crypto')
 const { createClient } = require('@supabase/supabase-js')
 const app = express()
 app.use(express.json())
@@ -25,77 +24,17 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
 }));
 
-// Session management now uses database table
-
-// Clean up expired sessions (called during API requests)
-async function cleanupExpiredSessions() {
-    try {
-        const { error } = await supabase
-            .from('sessions')
-            .delete()
-            .lt('expires_at', new Date().toISOString());
-
-        if (error) throw error;
-        console.log('Expired sessions cleaned up');
-    } catch (error) {
-        console.error('Session cleanup error:', error.message);
-    }
-}
-
-// Cookie parsing utility
-function parseCookies(cookieHeader) {
-    const cookies = {};
-    if (cookieHeader) {
-        cookieHeader.split(';').forEach(cookie => {
-            const [name, value] = cookie.trim().split('=');
-            cookies[name] = value;
-        });
-    }
-    return cookies;
-}
 
 
 // API Key middleware
 app.use('/api', (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
-    const expectedApiKey = 'XagnG5L1ss1nVX9F6ixDZ4GD1c2HUNyb3nm7gkIO';
-
+    const expectedApiKey = process.env.API_KEY;
     if (!apiKey || apiKey !== expectedApiKey) {
         return res.status(401).json({ error: 'Invalid or missing API key' });
     }
 
     next();
-});
-
-// Game start endpoint - creates session
-app.post('/api/game/start', async (req, res) => {
-    try {
-        // Clean up expired sessions before creating new one
-        await cleanupExpiredSessions();
-
-        const sessionId = crypto.randomUUID();
-        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
-
-        // Insert session into database
-        const { data, error } = await supabase
-            .from('sessions')
-            .insert({ session_id: sessionId, expires_at: expiresAt.toISOString() })
-            .select('session_id')
-            .single();
-
-        if (error) throw error;
-
-        res.cookie('gameSession', sessionId, {
-            maxAge: 60 * 60 * 1000, // 1 hour
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict'
-        });
-
-        res.json({ success: true, sessionId });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
 });
 
 app.get('/api/leaderboard', async (req, res) => {
@@ -143,32 +82,6 @@ app.post('/api/score', async (req, res) => {
             })
         }
 
-        // Parse cookies and validate session
-        const cookies = parseCookies(req.headers.cookie);
-        const sessionId = cookies.gameSession;
-
-        if (!sessionId) {
-            return res.status(401).json({
-                error: 'No session found. Start a new game first.'
-            });
-        }
-
-        // Check if session exists and is not expired
-        const { data: session, error: sessionError } = await supabase
-            .from('sessions')
-            .select('session_id')
-            .eq('session_id', sessionId)
-            .gt('expires_at', new Date().toISOString())
-            .single();
-
-        if (sessionError && sessionError.code !== 'PGRST116') throw sessionError; // PGRST116 = no rows found
-
-        if (!session) {
-            return res.status(401).json({
-                error: 'Invalid or expired session. Start a new game first.'
-            });
-        }
-
         const { data: newScore, error: scoreError } = await supabase
             .from('scores')
             .insert({ username, score })
@@ -176,15 +89,6 @@ app.post('/api/score', async (req, res) => {
             .single();
 
         if (scoreError) throw scoreError;
-
-        // Expire the session after successful score submission
-        const { error: deleteError } = await supabase
-            .from('sessions')
-            .delete()
-            .eq('session_id', sessionId);
-
-        if (deleteError) throw deleteError;
-        res.clearCookie('gameSession');
 
         res.json(newScore)
     } catch (error) {
