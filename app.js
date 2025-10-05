@@ -117,6 +117,9 @@ app.get('/api/leaderboard', async (req, res) => {
 
 app.post('/api/score', async (req, res) => {
     try {
+        if (Buffer.isBuffer(req.body)) {
+            req.body = JSON.parse(req.body.toString());
+        }
         const { username, score } = req.body;
 
         // Validate required fields
