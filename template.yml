@@ -76,6 +76,22 @@ Resources:
             RestApiId: !Ref CastleBackendApi
             Path: /
             Method: ANY
+        OptionsProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CastleBackendApi
+            Path: /{proxy+}
+            Method: OPTIONS
+            Auth:
+              ApiKeyRequired: false
+        OptionsRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CastleBackendApi
+            Path: /
+            Method: OPTIONS
+            Auth:
+              ApiKeyRequired: false
 
   CastleBackendApi:
     Type: AWS::Serverless::Api
