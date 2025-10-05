@@ -10,36 +10,32 @@ const supabaseKey = process.env.SUPABASE_KEY
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-
-
-
 const cors = require('cors');
-const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [];
+
+// Parse allowed origins from environment variable
+const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+    : [];
 
 app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true
-}))
+    origin: allowedOrigins.length > 0 ? allowedOrigins : false,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
+}));
+
+
 
 // API Key middleware
 app.use('/api', (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
     const expectedApiKey = process.env.API_KEY;
-
     if (!apiKey || apiKey !== expectedApiKey) {
         return res.status(401).json({ error: 'Invalid or missing API key' });
     }
 
     next();
 });
-
 
 app.get('/api/leaderboard', async (req, res) => {
     try {
@@ -60,6 +56,9 @@ app.get('/api/leaderboard', async (req, res) => {
 
 app.post('/api/score', async (req, res) => {
     try {
+        if (Buffer.isBuffer(req.body)) {
+            req.body = JSON.parse(req.body.toString());
+        }
         const { username, score } = req.body;
 
         // Validate required fields
